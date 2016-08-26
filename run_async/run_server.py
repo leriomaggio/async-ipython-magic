@@ -18,7 +18,6 @@ from multiprocessing import SimpleQueue
 from multiprocessing import Process as mp_Process
 from concurrent.futures import ProcessPoolExecutor
 from threading import Thread
-from multiprocessing import Process
 import logging
 
 # Shell Namespace restoring
@@ -34,37 +33,18 @@ from IPython.utils.io import capture_output
 from IPython.core.interactiveshell import InteractiveShell
 
 # Handlers and Utils
-from run_async.handlers import (WebSocketConnectionHandler, ResultCache, ExecutionHandler)
-from run_async.settings import JS_ROLE, PY_ROLE
-from run_async.settings import parse_ws_connection_id, format_ws_connection_id
-
-
-class CustomInteractiveShell(InteractiveShell):
-    """"""
-
-    def __init__(self, *args, **kwargs):
-        super(CustomInteractiveShell, self).__init__(*args, **kwargs)
-
-    def _showtraceback(self, etype, evalue, stb):
-        """Actually show a traceback.
-
-        Subclasses may override this method to put the traceback on a different
-        place, like a side channel.
-        """
-        # self.InteractiveTB.plain()
-        # self.InteractiveTB.call_pdb = False
-        # self.InteractiveTB.set_colors('NoColor')
-        # text = '\n'.join(stb)
-
-        # print(highlight(text, self.lexer, self.formatter))
-        print(self.InteractiveTB.stb2text(stb))
+from .handlers import (WebSocketConnectionHandler, ResultCache,
+                       ExecutionHandler)
+from .settings import JS_ROLE, PY_ROLE
+from .settings import parse_ws_connection_id
 
 
 def execute_cell(raw_cell, current_ns):
     """
     """
 
-    shell = CustomInteractiveShell()
+    # Create a new InteractiveShell
+    shell = InteractiveShell()
     # Disable Debugger
     shell.call_pdb = False
     shell.pdb = False
@@ -82,9 +62,8 @@ def execute_cell(raw_cell, current_ns):
 
     output = ''
     with capture_output() as io:
-        exec_result = shell.run_cell(raw_cell,
-                                     silent=True,
-                                     shell_futures=False)
+        _ = shell.run_cell(raw_cell,silent=True,
+                           shell_futures=False)
 
     # Update Namespace
     updated_namespace = dict()
@@ -111,6 +90,11 @@ def execute_cell(raw_cell, current_ns):
 
 class AsyncRunHandler(WebSocketHandler):
     """
+    Tornado WebSocket Handlers.
+    This class is responsible to handle the
+    actual communication occuring on the
+    web socket between the (JS) client and
+    (PY) server.
     """
 
     def __init__(self, application, request, **kwargs):
@@ -122,14 +106,13 @@ class AsyncRunHandler(WebSocketHandler):
         self.pool_executor = ProcessPoolExecutor()
 
     # noinspection PyMethodOverriding
-    def initialize(self, connection_handler, result_cache, job_queues, io_loop):
+    def initialize(self, connection_handler, result_cache,
+                   job_queues, io_loop):
         """Initialize the WebsocketHandler injecting proper handlers
-        instanties.
+        instances.
         These handlers will be used to store reference to client connections,
-        to cache execution results, and to manage a system of output queues.
-        In more details:
-
-        TODO:
+        to cache execution results, and to manage
+        a system of output queues, respectively.
         """
         self._connection_handler = connection_handler
         self._execution_cache = result_cache
@@ -220,21 +203,20 @@ class AsyncRunHandler(WebSocketHandler):
         data = {'session_id': self._session_id,
                 'output': output}
 
+        # ADD Cache Result
+        # print('Caching results for ', self.cache_id)
         # FIXME: This does not work if the output includes Images
         # TODO: Try using pickle here, instead of json
         jsonified = json.dumps(data)
-
-        # ADD Cache Result
-        # print('Caching results for ', self.cache_id)
         self._execution_cache.add(self._session_id, jsonified)
 
-        # GET Job Queue
-        # NOTE: One Job Queue per Session ID (to avoid conflicts)
-        job_queue = self._job_queues.get(self._session_id)
-        if job_queue:
-            job_queue.put(jsonified)
-        else:
-            print("NO JOB QUEUE for current Session: ", self._session_id)
+        # # GET Job Queue
+        # # NOTE: One Job Queue per Session ID (to avoid conflicts)
+        # job_queue = self._job_queues.get(self._session_id)
+        # if job_queue:
+        #     job_queue.put(jsonified)
+        # else:
+        #     print("NO JOB QUEUE for current Session: ", self._session_id)
 
         # Get WebSocket Connection of the client to receive updates in
         # the namespace of the cell
@@ -245,6 +227,7 @@ class AsyncRunHandler(WebSocketHandler):
             message = {'exec_output': output}
             message.update(namespace)
             bin_message = pickle.dumps(message)
+            # Write again on the web socket so to fire JS Client side.
             ws_conn.write_message(bin_message, binary=True)
         else:
             print("No Connection found for ", self._connection_id)
@@ -279,6 +262,8 @@ class AsyncRunHandler(WebSocketHandler):
 
     def on_message(self, message):
         """
+        Handler method activated every time a new
+        message is received on the web socket.
         """
         try:
             data = json.loads(message)
@@ -321,9 +306,9 @@ class AsyncRunHandler(WebSocketHandler):
             if self._code_to_run and self._user_ns:
                 # Start the execution of the cell
                 print("Starting Execution")
-                t = Thread(target=self.run)
-                t.start()
-                # self.run()
+                # t = Thread(target=self.run)
+                # t.start()
+                self.run()
         else:
             print('No Action found for Role: ', role_name)
 
@@ -340,7 +325,15 @@ class PingRequestHandler(RequestHandler):
         self.write("Server is Up'n'Running!")
 
 
-class AsyncRunServer(Process):
+class AsyncRunServer(mp_Process):
+    """The main `multiprocessing.Process` class
+    controlling the execution of the
+    Asynch Server running.
+
+    This class is in charge to handle
+    references to the IO Loop (Tornado Loop
+    so far) and the Http Server.
+    """
 
     def __init__(self):
         super(AsyncRunServer, self).__init__()
@@ -349,10 +342,6 @@ class AsyncRunServer(Process):
 
     def run(self):
         """
-
-        Returns
-        -------
-
         """
         # logging.basicConfig(filename='runserver.log',level=logging.DEBUG)
 
