@@ -14,11 +14,9 @@ except ImportError:
     WebSocketHandler = RequestHandler = Application = object
 
 # Execution
-from multiprocessing import SimpleQueue
 from multiprocessing import Process as mp_Process
 from concurrent.futures import ProcessPoolExecutor
 from threading import Thread
-import logging
 
 # Shell Namespace restoring
 from inspect import ismodule as inspect_ismodule
@@ -41,8 +39,8 @@ from .utils import parse_ws_connection_id
 
 def execute_cell(raw_cell, current_ns):
     """
+    Perform the execution of the async cell
     """
-
     # Create a new InteractiveShell
     shell = InteractiveShell()
     # Disable Debugger
@@ -70,7 +68,6 @@ def execute_cell(raw_cell, current_ns):
     updated_namespace.setdefault('import_modules', list())
     for k, v in shell.user_ns.items():
         try:
-            # _ = json.dumps({k:v})
             if inspect_ismodule(v):
                 updated_namespace['import_modules'].append((k, v.__name__))
             else:
@@ -85,7 +82,6 @@ def execute_cell(raw_cell, current_ns):
 
     # if not output:
     output += io.stdout
-
     return output, updated_namespace
 
 class AsyncRunHandler(WebSocketHandler):
@@ -103,11 +99,9 @@ class AsyncRunHandler(WebSocketHandler):
         self._session_id = ''
         self._code_to_run = None
         self._user_ns = None
-        self.pool_executor = ProcessPoolExecutor()
 
     # noinspection PyMethodOverriding
-    def initialize(self, connection_handler, result_cache,
-                   job_queues, io_loop):
+    def initialize(self, connection_handler, result_cache, io_loop):
         """Initialize the WebsocketHandler injecting proper handlers
         instances.
         These handlers will be used to store reference to client connections,
@@ -116,7 +110,6 @@ class AsyncRunHandler(WebSocketHandler):
         """
         self._connection_handler = connection_handler
         self._execution_cache = result_cache
-        self._job_queues = job_queues
         self._ioloop = io_loop
 
     def check_origin(self, origin):
@@ -133,71 +126,15 @@ class AsyncRunHandler(WebSocketHandler):
         # ADD Websocket Connection
         self._connection_handler.add(connection_id, self)
 
-        # ADD Job Queue
-        if not session_id in self._job_queues:
-            self._job_queues.add(session_id, SimpleQueue())
-
-    # def do_work_in_queue(self):
-    #     """
-    #     """
-    #
-    #     # with ProcessPoolExecutor(max_workers=1) as executor:
-    #     #     # future = executor.submit(run_cell_in_kernel,
-    #     #     future = executor.submit(execute_cell,
-    #     #                              self._code_to_run,
-    #     #                              self._user_ns,
-    #     #                              )
-    #     #     output, namespace = future.result()
-    #     #     # self._process_exec_queue.put((output, namespace))
-    #     #     # output, namespace = self._process_exec_queue.get()
-
-    # def store_output_from_queue(self):
-    #     """
-    #     """
-    #     output, namespace = self._process_exec_queue.get()
-    #     data = {'session_id': self._session_id,
-    #             'output': output}
-    #     jsonified = json.dumps(data)
-    #
-    #     # ADD Cache Result
-    #     # print('Caching results for ', self.cache_id)
-    #     self._execution_cache.add(self.cache_id, jsonified)
-    #
-    #     # GET Job Queue
-    #     # NOTE: One Job Queue per Session ID (to avoid conflicts)
-    #     job_queue = self._job_queues.get(self._session_id)
-    #     if job_queue is not None:
-    #         job_queue.put(jsonified)
-    #     else:
-    #         print("NO JOB QUEUE for current Session: ", self._session_id)
-    #
-    #     # Send to client the updated namespace
-    #     ws_conn = self._connection_handler.get(self._connection_id)
-    #     if ws_conn:
-    #         # Add Execution output to allow for *Output History UPDATE*
-    #         message = {'exec_output': output}
-    #         message.update(namespace)
-    #         bin_message = pickle.dumps(message)
-    #         ws_conn.write_message(bin_message, binary=True)
-    #     else:
-    #         print("No Connection found for ", self._connection_id)
-
     def process_work_completed(self, future):
         """
-
-        Parameters
-        ----------
-        future
-
-        Returns
-        -------
-
         """
-
+        # This output will go to the server stdout
+        # to be removed
         print('Future Completed')
 
         # Get Execution results
-        output, namespace = future.result()
+        output, namespace = future.result()  # potentially blocking call
 
         # Post-execution processing
         data = {'session_id': self._session_id,
@@ -209,14 +146,6 @@ class AsyncRunHandler(WebSocketHandler):
         # TODO: Try using pickle here, instead of json
         jsonified = json.dumps(data)
         self._execution_cache.add(self._session_id, jsonified)
-
-        # # GET Job Queue
-        # # NOTE: One Job Queue per Session ID (to avoid conflicts)
-        # job_queue = self._job_queues.get(self._session_id)
-        # if job_queue:
-        #     job_queue.put(jsonified)
-        # else:
-        #     print("NO JOB QUEUE for current Session: ", self._session_id)
 
         # Get WebSocket Connection of the client to receive updates in
         # the namespace of the cell
@@ -232,33 +161,11 @@ class AsyncRunHandler(WebSocketHandler):
         else:
             print("No Connection found for ", self._connection_id)
 
-    def run(self):
-        """
-        """
-        # Worker
-        # worker = Thread(target=self.do_work_in_queue)
-        # worker.daemon = True
-        # worker.start()
-
-        # # Publisher
-        # publisher = Thread(target=self.store_output_from_queue)
-        # publisher.daemon = True
-        # publisher.start()
-
+    def run_async_cell_execution(self):
         with ProcessPoolExecutor() as executor:
             future = executor.submit(execute_cell, self._code_to_run, self._user_ns)
-            # self._ioloop.add_future(future, self.process_work_completed)
-            self.process_work_completed(future)
-
-
-        # future = self.pool_executor.submit(execute_cell, self._code_to_run, self._user_ns)
-        # self._ioloop.add_future(future, self.process_work_completed)
-
-
-        #     worker = mp_Process(target=execute_cell, args=(self._code_to_run, self._user_ns,
-        #                                                    self._session_id, job_queue,
-        #                                                    self._execution_cache, ws_conn,))
-        #     worker.start()
+            self._ioloop.add_future(future, self.process_work_completed)
+            # self.process_work_completed(future)
 
     def on_message(self, message):
         """
@@ -271,33 +178,20 @@ class AsyncRunHandler(WebSocketHandler):
             # Binary Message
             data = pickle.loads(message)
 
-        # print('Received Data: ', data)
         connection_id = data.get('connection_id', '')
         role_name, _ = parse_ws_connection_id(connection_id)
 
         if role_name == JS_ROLE:
             # GET Cache Result
             json_data = self._execution_cache.get(connection_id)
-
-            if json_data is None:
-                # GET Job Queue
-                job_queue = self._job_queues.get(self._session_id)
-                json_data = job_queue.get()  # WAIT for task to complete
-            else:
-                print('Getting data from cache!!')
-
-            # print('json_data: ', json_data)
-
             # GET WebSocketConnection
             ws_conn = self._connection_handler.get(connection_id)
-            if ws_conn:
+            if ws_conn and json_data:
                 ws_conn.write_message(json_data)  # JS Client
-                # REMOVE Job Queue
-                self._job_queues.remove(self._session_id)
             else:
-                print('No connection stored for ', role_name)
+                print('No connection nor data stored for ', role_name)
 
-        elif role_name == PY_ROLE:  # parse the code to run
+        elif role_name == PY_ROLE:  # parse the code to run_async_cell_execution
             if 'nb_code_to_run_async' in data:
                 self._code_to_run = data['nb_code_to_run_async']
             else:  # namespace
@@ -306,9 +200,9 @@ class AsyncRunHandler(WebSocketHandler):
             if self._code_to_run and self._user_ns:
                 # Start the execution of the cell
                 print("Starting Execution")
-                # t = Thread(target=self.run)
+                # t = Thread(target=self.run_async_cell_execution)
                 # t.start()
-                self.run()
+                self.run_async_cell_execution()
         else:
             print('No Action found for Role: ', role_name)
 
@@ -350,12 +244,10 @@ class AsyncRunServer(mp_Process):
         self.io_loop = IOLoop.instance()
 
         ws_connection_handler = WebSocketConnectionHandler()
-        execution_handler = ExecutionHandler()
         results_cache = ResultCache()
         tornado_app = Application(handlers=[
             (r"/ws/(.*)", AsyncRunHandler, {'connection_handler': ws_connection_handler,
                                             'result_cache': results_cache,
-                                            'job_queues': execution_handler,
                                             'io_loop': self.io_loop,
                                             }),
             (r"/ping", PingRequestHandler)])
