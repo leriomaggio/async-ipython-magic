@@ -51,7 +51,7 @@ class WSConnector:
         connection_id: str
             The unique ID of the connection to establish on the websocket.
         code_to_run: str
-            The content of the async cell to run
+            The content of the async cell to run_async_cell_execution
         shell: `IPython.core.interactiveshell.InteractiveShell`
             Instance of the current IPython shell running in the
             notebook.
