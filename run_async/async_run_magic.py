@@ -4,6 +4,7 @@
 # Copyright (c) 2015 Valerio Maggio <valeriomaggio@gmail.com>
 # License: BSD 3 clause
 
+from __future__ import print_function  # Python 2 compatibility
 import json
 from pickle import dumps as pickle_dumps
 from pickle import loads as pickle_loads
@@ -11,12 +12,10 @@ from pickle import PickleError
 from uuid import uuid4
 from urllib.request import URLError, urlopen
 
-from IPython.display import HTML
 try:
     from tornado.websocket import websocket_connect
 except ImportError:
     pass
-
 
 from os import kill as os_kill
 from signal import SIGINT as signal_SIGINT
@@ -28,12 +27,12 @@ from .settings import JS_ROLE, PY_ROLE
 from .settings import format_ws_connection_id
 from .settings import connection_string
 
+from IPython.display import HTML
 from IPython.core.magic import (Magics, magics_class, line_magic,
                                 line_cell_magic)
 
 from run_async.run_server import AsyncRunServer
 from threading import Thread
-import logging
 
 from .utils import strip_ansi_color
 
@@ -203,7 +202,7 @@ $(document).ready(function(){
 # IPython (Line/Cell) Magic
 # -------------------------
 
-class WSConnector():
+class WSConnector:
 
     def __init__(self, connection_id, code_to_run, shell):
         """
@@ -226,6 +225,7 @@ class WSConnector():
 
     def connect(self):
         """
+        Creates the connection to the Tornado Web Socket
         """
         # FIXME: hard coded connection string
         websocket_connect('ws://localhost:5678/ws/{0}'.format(self.connection_id),
@@ -233,6 +233,12 @@ class WSConnector():
                               on_message_callback=self.on_message)
 
     def on_connected(self, f):
+        """Callback fired **On Connection**
+
+        Once the connection to the websocket has been established,
+        all the currenct namespace is pickled and written to the
+        corresponding web_socket connection.
+        """
         try:
             ws_conn = f.result()
             self.ws_conn = ws_conn
@@ -244,7 +250,7 @@ class WSConnector():
 
             default_blacklist = ['__builtin__', '__builtins__', '__doc__',
                                  '__loader__', '__name__', '__package__',
-                                 '__spec__', '_sh', 'exit', 'quit',
+                                 '__spec__', '_sh', 'exit', 'quit', 'MyMagics',
                                  'AsyncRunMagic', 'Magics', 'cmagic', 'magics_class']
             white_ns = dict()
             white_ns.setdefault('import_modules', list())
@@ -269,6 +275,7 @@ class WSConnector():
         #     ws_conn.close()
 
     def on_message(self, message):
+        """Callback fired **On message**"""
         if message is not None:
             msg = dict(pickle_loads(message))
             exec_output = None
