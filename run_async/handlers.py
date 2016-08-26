@@ -13,7 +13,8 @@ try:
 except ImportError:
     pass
 
-from run_async.settings import format_ws_connection_id, JS_ROLE
+from .settings import JS_ROLE
+from .utils import format_ws_connection_id
 
 
 class Handler():

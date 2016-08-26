@@ -36,7 +36,7 @@ from IPython.core.interactiveshell import InteractiveShell
 from .handlers import (WebSocketConnectionHandler, ResultCache,
                        ExecutionHandler)
 from .settings import JS_ROLE, PY_ROLE
-from .settings import parse_ws_connection_id
+from .utils import parse_ws_connection_id
 
 
 def execute_cell(raw_cell, current_ns):
