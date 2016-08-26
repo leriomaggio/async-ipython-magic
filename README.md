@@ -47,7 +47,12 @@ After that, the magic will be enabled by default at the startup of each Jupyter/
 ## Requirements ##
 
 The **only** two main requirements for this Magic are `notebook` and `tornado` (which will be
-indeed installed by the *jupyter notebook* itself).
+indeed installed by the *jupyter notebook* itself). Moreover, the `psutil` module is needed.
+
+To ease the installation of all the requirements, a `requirements.txt` file is provided in the repo
+for pip installing:
+
+```pip install -f requirements.txt```
 
 ### Python 2 Users
 
@@ -56,6 +61,9 @@ For example, it relies on the `concurrent.futures` module to allow for the multi
 
 This module is only available in **Python 3** standard library. For Python 2, you have to `pip install`
 the [futures](https://pypi.python.org/pypi/futures)
+
+A couple of fix could be included in the code to easily support Python 2 as well, leveraging on the `six`
+module. These fixes will be soon included in the code base.
 
 ## Usage ##
 
