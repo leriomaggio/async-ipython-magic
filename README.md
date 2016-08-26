@@ -1,7 +1,9 @@
 # `%%async_run`: an IPython notebook magic for asynchronous cell execution
 
 
-## Description ##
+## Description (Talk Abstract @EuroScipy 2016) ##
+
+<img src="https://github.com/leriomaggio/deep-learning-keras-euroscipy2016/blob/master/imgs/euroscipy_2016_logo.png" width="50%" />
 
 The IPython `notebook` project is one the preferred tools of data scientists, 
 and it is nowadays the bastion for *Reproducible Research*.
