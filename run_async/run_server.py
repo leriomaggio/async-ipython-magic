@@ -15,6 +15,9 @@ except ImportError:
 
 # Execution
 from multiprocessing import Process as mp_Process
+# -- Python2 Compatibility WARNING
+# Python 2 requires **futures**
+# https://github.com/agronholm/pythonfutures
 from concurrent.futures import ProcessPoolExecutor
 from threading import Thread
 
@@ -33,7 +36,7 @@ from IPython.core.interactiveshell import InteractiveShell
 # Handlers and Utils
 from .handlers import (WebSocketConnectionHandler, ResultCache,
                        ExecutionHandler)
-from .settings import JS_ROLE, PY_ROLE
+from .settings import JS_ROLE, PY_ROLE, SERVER_PORT, SERVER_ADDR
 from .utils import parse_ws_connection_id
 
 
@@ -253,7 +256,8 @@ class AsyncRunServer(mp_Process):
             (r"/ping", PingRequestHandler)])
         self.http_server = HTTPServer(tornado_app)
         try:
-            self.http_server.listen(5678)
+            self.http_server.listen(port=SERVER_PORT,
+                                    address=SERVER_ADDR)
             if not self.io_loop._running:
                 print('Running Server Loop')
                 self.io_loop.start()
