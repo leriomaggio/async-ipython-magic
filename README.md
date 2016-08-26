@@ -1,5 +1,8 @@
 # `%%async_run`: an IPython notebook magic for asynchronous cell execution
 
+
+## Description ##
+
 The IPython `notebook` project is one the preferred tools of data scientists, 
 and it is nowadays the bastion for *Reproducible Research*.
 
@@ -22,3 +25,46 @@ among processes*) , aiming at getting as many feedbacks as possible from the com
 A general introduction to the actual state-of-the-art of the **Jupyter** projects (an libraries) will be 
 presented as well, in order to help those who are willing to know some more details about the internals of 
 IPython.
+
+## Enabling the Magic(s)
+
+Enabling the magic is simple as *copying files into a directory*. Open the terminal and:
+
+``` 
+cp -R async_run_ipython_magic.py run_async/ ~/.ipython/profile_default/startup/
+```
+
+After that, the magic will be enabled by default at the startup of each Jupyter/IPython sessions.
+
+## Requirements ##
+
+The **only** two main requirements for this Magic are `notebook` and `tornado` (which will be
+indeed installed by the *jupyter notebook* itself).
+
+### Python 2 Users
+
+So far, this magic works **only** with Python 3.
+For example, it relies on the `concurrent.futures` module to allow for the multiprocessing execution.
+
+This module is only available in **Python 3** standard library. For Python 2, you have to `pip install`
+the [futures](https://pypi.python.org/pypi/futures)
+
+## Usage ##
+
+Three `[%]%async_*` magics are provided within this package:
+
+* `%async_run_server` : Spawns the `AsyncRunServer` process, which is in charge of handling the async cell execution inside a Tornado `WebApplication` and `IOLoop`.
+
+* `%async_stop_server` : Stops the `AsyncRunServer` running process, if any.
+
+* `[%]%async_run` : Line/Cell Magic to asynchronously execute the content of the line/cell, respectively.
+
+
+### Note: ###
+
+If you want to run the server in a terminal and get the log output, move to the `startup` folder and execute:
+
+- `python -m run_async.run_server`
+
+
+
