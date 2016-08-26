@@ -28,6 +28,12 @@ A general introduction to the actual state-of-the-art of the **Jupyter** project
 presented as well, in order to help those who are willing to know some more details about the internals of 
 IPython.
 
+### Slides ###
+
+Slides of the talk are available on my 
+[SpeakerDeck](https://speakerdeck.com/valeriomaggio/percent-percent-async-run-an-ipython-notebook-extension-for-asynchronous-cell-execution)
+profile.
+
 ## Enabling the Magic(s)
 
 Enabling the magic is simple as *copying files into a directory*. Open the terminal and:
@@ -60,6 +66,10 @@ Three `[%]%async_*` magics are provided within this package:
 * `%async_stop_server` : Stops the `AsyncRunServer` running process, if any.
 
 * `[%]%async_run` : Line/Cell Magic to asynchronously execute the content of the line/cell, respectively.
+
+### Examples ###
+
+Please, check out the `examples` folder for examples and hints for usage (so far, very few examples available. More to come!)
 
 
 ### Note: ###
