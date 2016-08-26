@@ -180,42 +180,13 @@ class AsyncRunMagic(Magics):
     def __init__(self, shell, **kwargs):
         super(AsyncRunMagic, self).__init__(shell, **kwargs)
         self._server_process = None
-
-    def _spawn_server_process(self):
-        self._server_process.start()
-        print('Process Started with PID ', self._server_process.pid)
-        self._server_process.join()
-
-    @line_magic
-    def async_start_server(self, line):
-        if (not self._server_process is None) and (self._server_process.is_alive()):
-            print("Cannot Start process twice")
-        else:
-            self._server_process = AsyncRunServer()
-            th_runner = Thread(target=self._spawn_server_process)
-            th_runner.start()
-
-    @line_magic
-    def async_stop_server(self, line):
-        if self._server_process is None or not self._server_process.is_alive():
-            print('No Server is Running')
-        else:
-            print("Killing SIGINT to PID ", self._server_process.pid)
-            try:
-                os_kill(self._server_process.pid, signal_SIGINT)
-            except ProcessLookupError:
-                pass
-            finally:
-                self._server_process = None
-
+        
     @line_cell_magic
     def async_run(self, line, cell=None):
         """Run code into cell asynchronously
-
             Usage:\\
               %async_run <source> (cell content)
         """
-
         if cell is None:
             code_to_run = line
         else:
@@ -223,7 +194,6 @@ class AsyncRunMagic(Magics):
 
         session_id = str(uuid4())
         connection_id = format_ws_connection_id(PY_ROLE, session_id)
-
         try:
             _ = urlopen(connection_string(web_socket=False, extra='ping'))
         except URLError:
@@ -238,6 +208,32 @@ class AsyncRunMagic(Magics):
             js_code = js_code.replace('__connection_id__', format_ws_connection_id(JS_ROLE,
                                                                                    session_id))
             html_output += js_code
-
             return HTML(html_output)
+
+    def _spawn_server_process(self):
+        self._server_process.start()
+        print('Process Started with PID ', self._server_process.pid)
+        self._server_process.join()
+
+    @line_magic
+    def async_start_server(self, line):
+        if (not self._server_process is None) and (self._server_process.is_alive()):
+            print("Cannot Start process twice")
+        else:
+            self._server_process = AsyncRunServer()
+            th_runner = Thread(target=self._spawn_server_process, daemon=True)
+            th_runner.start()
+
+    @line_magic
+    def async_stop_server(self, line):
+        if self._server_process is None or not self._server_process.is_alive():
+            print('No Server is Running')
+        else:
+            print("Killing SIGINT to PID ", self._server_process.pid)
+            try:
+                os_kill(self._server_process.pid, signal_SIGINT)
+            except ProcessLookupError:
+                pass
+            finally:
+                self._server_process = None
 
