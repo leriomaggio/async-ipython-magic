@@ -265,7 +265,7 @@ class AsyncRunServer(mp_Process):
                 print("IOLoop already running")
         except OSError:
             print("Server is already running!")
-        except KeyboardInterrupt:
+        except KeyboardInterrupt:  # SIGINT, SIGTERM
             print('Closing Server Loop')
             self.http_server.close_all_connections()
             self.io_loop.stop()
