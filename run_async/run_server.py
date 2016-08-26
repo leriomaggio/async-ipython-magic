@@ -131,6 +131,8 @@ class AsyncRunHandler(WebSocketHandler):
 
     def process_work_completed(self, future):
         """
+        Callback injected in Tornado IOLoop to be called
+        whenever the future (concurrent.ProcessPoolExecutor) is completed.
         """
         # This output will go to the server stdout
         # to be removed
@@ -238,9 +240,7 @@ class AsyncRunServer(mp_Process):
         self.http_server = None
 
     def run(self):
-        """
-        """
-        # logging.basicConfig(filename='runserver.log',level=logging.DEBUG)
+        #logging.basicConfig(filename='runserver.log',level=logging.DEBUG)
 
         IOLoop.clear_current()
         IOLoop.clear_instance()
