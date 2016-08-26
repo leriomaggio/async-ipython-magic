@@ -25,8 +25,8 @@ def format_ws_connection_id(role_name, session_id):
     Format and return a (likely) unique string
      to be fed to the Websocket server in the
      url. This string will be used to uniquely
-     identify the opened connection.
-     See `run_server.ConnectionHandler` for further
+     identify the open connection.
+     See `run_server.WebSocketConnectionHandler` for further
      details.
 
     Parameters
