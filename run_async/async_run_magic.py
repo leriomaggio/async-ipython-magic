@@ -10,6 +10,8 @@ import json
 from pickle import dumps as pickle_dumps
 from pickle import loads as pickle_loads
 from pickle import PicklingError
+## -- Python2
+# from six.moves.urllib.request import URLError, urlopen
 from urllib.request import URLError, urlopen
 from uuid import uuid4
 
@@ -17,9 +19,6 @@ try:
     from tornado.websocket import websocket_connect
 except ImportError:
     pass
-
-from os import kill as os_kill
-from signal import SIGINT as signal_SIGINT
 
 from importlib import import_module
 from inspect import ismodule as inspect_ismodule
@@ -36,6 +35,9 @@ from IPython.core.magic import (Magics, magics_class, line_magic,
 
 from .run_server import AsyncRunServer
 from threading import Thread
+# used to reliably kill possibly running
+# server process
+import psutil
 
 
 # -------------------------
@@ -221,7 +223,8 @@ class AsyncRunMagic(Magics):
             print("Cannot Start process twice")
         else:
             self._server_process = AsyncRunServer()
-            th_runner = Thread(target=self._spawn_server_process, daemon=True)
+            th_runner = Thread(target=self._spawn_server_process,
+                               daemon=True)
             th_runner.start()
 
     @line_magic
@@ -230,10 +233,12 @@ class AsyncRunMagic(Magics):
             print('No Server is Running')
         else:
             print("Killing SIGINT to PID ", self._server_process.pid)
-            try:
-                os_kill(self._server_process.pid, signal_SIGINT)
-            except ProcessLookupError:
-                pass
-            finally:
+            while self._server_process.is_alive():
+                try:
+                    p = psutil.Process(self._server_process.pid)
+                    p.terminate()  # or p.kill()
+                except ProcessLookupError:
+                    pass
+            else:
                 self._server_process = None
 
